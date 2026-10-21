@@ -11,18 +11,18 @@ An FVG is a three-candle imbalance:
 
 | Rule | Default |
 |---|---|
-| Stop loss | Beyond candle 1's extreme + 50 point buffer (switchable to the far gap edge) |
+| Stop loss | Beyond candle 1's extreme + $0.50 buffer (switchable to the far gap edge) |
 | Take profit | 2R (twice the stop distance) |
-| Breakeven | At 1R profit the stop moves to entry + 10 points (covers the spread) |
+| Breakeven | At 1R profit the stop moves to entry + $0.10 (covers the spread) |
 | Risk | 1% of balance per trade, sized from the stop distance |
-| Min gap size | 100 points (about $1.00 on most gold feeds) |
+| Min gap size | $1.00 |
 | Displacement | Middle candle must close in the gap's direction |
 | Trend filter | Buys only when the last closed H1 candle is above the 200 EMA, sells only when below |
-| Sessions | London (10:00–19:00) and New York (15:00–23:00), broker server time; unfilled orders are cancelled outside them |
+| Sessions | London 08:00–17:00 UK time and New York 08:00–16:00 NY time, summer time handled automatically; unfilled orders are cancelled outside them |
 | Unfilled orders | Cancelled after 16 bars (4 hours); a newer FVG replaces an older unfilled order |
 | Max positions | 1 |
 | Daily kill switch | Closes everything and stops for the day at a 3% equity drawdown |
-| Spread filter | No new orders above 50 points of spread |
+| Spread filter | No new orders when the spread is above $0.50 |
 
 ## Files
 
@@ -46,13 +46,13 @@ An FVG is a three-candle imbalance:
 
 ## 2. Paper trade (demo account)
 
-1. Open a **demo account** with any MT5 broker (File → Open an Account).
+1. Open an **Exness MT5 demo account** (or any MT5 broker's demo) and log in to it from MT5.
 2. Attach the EA to an XAUUSD M15 chart, enable **Algo Trading** in the toolbar.
 3. Let it run for several weeks and compare the results with the backtest before considering real money.
 
 ## Notes
 
-- Point size differs between brokers (gold is usually 2 decimals, so 1 point = $0.01). Adjust the point-based inputs if your feed uses 3 decimals.
-- Session hours use the broker's server time. The defaults assume a GMT+2 (winter) / GMT+3 (summer) server, which most MT5 brokers use. On that clock London opens at 10:00 and New York at 15:00 all year. If your broker's clock is different, shift the hours: London is 08:00–17:00 UK time and New York is 08:00–16:00 New York time. The NY window stops at 23:00 to avoid the wide spreads around the daily rollover.
+- **Broker:** built and documented for [Exness](https://www.exness.com) (FSCA-regulated in South Africa, ZAR accounts), but it works with any MT5 broker. Distances are set in dollars, so it doesn't matter whether a broker quotes gold to 2 or 3 decimals, and it trades whatever gold symbol it's attached to (`XAUUSD`, `XAUUSDm`, ...).
+- **Server clock:** the sessions are set in London and New York local time, and the EA converts from the broker's server clock. On a live or demo account it detects the server's offset automatically. In the Strategy Tester it can't, so it uses `InpServerGmtOffset` (default 0; Exness servers are usually GMT+0, but confirm this). Check by comparing the Market Watch clock in MT5 with UTC. For a GMT+2/+3 broker, set `InpServerClock` to "GMT+2, GMT+3 during US summer time".
 - Open positions are not closed when a session ends; they run to their stop or target.
 - If the stop distance needs less than the broker's minimum lot size, the trade is skipped rather than over-risked.

@@ -30,12 +30,19 @@ enum ENUM_STOP_MODE
    STOP_GAP_FAR_EDGE    = 1  // Beyond the far edge of the gap (tighter stop)
   };
 
+enum ENUM_SERVER_CLOCK
+  {
+   SERVER_CLOCK_AUTO     = 0, // Auto-detect live; fixed offset in the tester
+   SERVER_CLOCK_FIXED    = 1, // Fixed GMT offset (InpServerGmtOffset)
+   SERVER_CLOCK_NY_CLOSE = 2  // GMT+2, GMT+3 during US summer time
+  };
+
 //--- Strategy
 input ENUM_TIMEFRAMES InpTimeframe          = PERIOD_M15;           // Signal timeframe
-input double          InpMinGapPoints       = 100;                  // Min gap size (points)
+input double          InpMinGap             = 1.00;                 // Min gap size (price, $ for gold)
 input bool            InpRequireDisplacement = true;                // Middle candle must close in gap direction
 input ENUM_STOP_MODE  InpStopMode           = STOP_CANDLE1_EXTREME; // Stop placement
-input double          InpStopBufferPoints   = 50;                   // Extra stop buffer (points)
+input double          InpStopBuffer         = 0.50;                 // Extra stop buffer (price, $ for gold)
 input double          InpRewardRisk         = 2.0;                  // Take profit in R multiples
 input int             InpOrderExpiryBars    = 16;                   // Cancel unfilled order after N bars
 input bool            InpReplacePending     = true;                 // New FVG replaces an unfilled order
@@ -44,28 +51,30 @@ input bool            InpReplacePending     = true;                 // New FVG r
 input double          InpRiskPercent        = 1.0;                  // Risk per trade (% of balance)
 input int             InpMaxPositions       = 1;                    // Max open positions
 input double          InpMaxDailyLossPct    = 3.0;                  // Daily loss kill switch (% of day-start equity, 0 = off)
-input double          InpMaxSpreadPoints    = 50;                   // Max spread to place orders (points, 0 = off)
+input double          InpMaxSpread          = 0.50;                 // Max spread to place orders (price, $ for gold, 0 = off)
 
 //--- Breakeven
 input bool            InpUseBreakeven       = true;                 // Move stop to breakeven
 input double          InpBreakevenTriggerR  = 1.0;                  // Trigger when profit reaches N x initial risk
-input double          InpBreakevenOffsetPoints = 10;                // Lock in this many points past entry (covers spread)
+input double          InpBreakevenOffset    = 0.10;                 // Lock in this much past entry (price, $ for gold; covers spread)
 
 //--- Trend filter: only trade gaps in the direction of the higher-timeframe trend
 input bool            InpUseTrendFilter     = true;                 // Enable trend filter
 input ENUM_TIMEFRAMES InpTrendTimeframe     = PERIOD_H1;            // Trend timeframe
 input int             InpTrendMAPeriod      = 200;                  // Trend EMA period
 
-//--- Sessions (broker server time). Defaults assume a GMT+2/GMT+3 server
-//--- (the common "New York close" broker clock), on which both sessions
-//--- stay at the same server hours year-round.
+//--- Sessions, in each city's local time (summer time handled automatically)
 input bool            InpUseLondon          = true;                 // Trade the London session
-input int             InpLondonStartHour    = 10;                   // London start hour (0-23)
-input int             InpLondonEndHour      = 19;                   // London end hour (1-24)
+input int             InpLondonStartHour    = 8;                    // London start hour, UK time (0-23)
+input int             InpLondonEndHour      = 17;                   // London end hour, UK time (1-24)
 input bool            InpUseNewYork         = true;                 // Trade the New York session
-input int             InpNewYorkStartHour   = 15;                   // New York start hour (0-23)
-input int             InpNewYorkEndHour     = 23;                   // New York end hour (1-24, avoids the rollover hour)
+input int             InpNewYorkStartHour   = 8;                    // New York start hour, NY time (0-23)
+input int             InpNewYorkEndHour     = 16;                   // New York end hour, NY time (1-24, before the 17:00 rollover)
 input bool            InpCancelOutsideSession = true;               // Cancel unfilled orders outside the sessions
+
+//--- Broker server clock, used to convert server time to UTC
+input ENUM_SERVER_CLOCK InpServerClock      = SERVER_CLOCK_AUTO;    // Server clock
+input int             InpServerGmtOffset    = 0;                    // Fixed server GMT offset in hours (Exness: 0)
 
 //--- Misc
 input ulong           InpMagic              = 20261021;             // Magic number
@@ -111,7 +120,8 @@ int OnInit()
 
    trade.SetExpertMagicNumber(InpMagic);
    trade.SetTypeFillingBySymbol(_Symbol);
-   trade.SetDeviationInPoints(30);
+   // Max slippage for market closes (kill switch): $0.30, whatever the symbol's digits.
+   trade.SetDeviationInPoints((ulong)MathMax(1, MathRound(0.30 / _Point)));
 
    ResetDailyState();
    return INIT_SUCCEEDED;
@@ -188,7 +198,7 @@ void ManageBreakeven()
    if(!InpUseBreakeven)
       return;
 
-   double offset  = InpBreakevenOffsetPoints * _Point;
+   double offset  = InpBreakevenOffset;
    double minDist = (double)MathMax(SymbolInfoInteger(_Symbol, SYMBOL_TRADE_STOPS_LEVEL),
                                     SymbolInfoInteger(_Symbol, SYMBOL_TRADE_FREEZE_LEVEL)) * _Point;
    double bid     = SymbolInfoDouble(_Symbol, SYMBOL_BID);
@@ -247,8 +257,8 @@ void CheckForFvg()
    if(h1 == 0 || l1 == 0 || h3 == 0 || l3 == 0)
       return;
 
-   double minGap = InpMinGapPoints * _Point;
-   double buffer = InpStopBufferPoints * _Point;
+   double minGap = InpMinGap;
+   double buffer = InpStopBuffer;
 
    bool bullGap = (l3 - h1 >= minGap && (!InpRequireDisplacement || c2 > o2));
    bool bearGap = (l1 - h3 >= minGap && (!InpRequireDisplacement || c2 < o2));
@@ -295,12 +305,12 @@ void PlaceOrder(ENUM_ORDER_TYPE type, double entry, double sl, double tp)
       DeleteAllPendingOrders();
      }
 
-   if(InpMaxSpreadPoints > 0)
+   if(InpMaxSpread > 0)
      {
-      long spread = SymbolInfoInteger(_Symbol, SYMBOL_SPREAD);
-      if(spread > InpMaxSpreadPoints)
+      double spread = SymbolInfoDouble(_Symbol, SYMBOL_ASK) - SymbolInfoDouble(_Symbol, SYMBOL_BID);
+      if(spread > InpMaxSpread)
         {
-         PrintFormat("Skip FVG: spread %d > max %.0f points", (int)spread, InpMaxSpreadPoints);
+         PrintFormat("Skip FVG: spread %.3f > max %.3f", spread, InpMaxSpread);
          return;
         }
      }
@@ -408,12 +418,91 @@ bool HourInWindow(int hour, int startHour, int endHour)
    return hour >= startHour || hour < endHour;
   }
 
+//--- Time zone helpers. MQL5 has no time zone database, so the UK and US
+//--- summer-time rules are coded directly.
+datetime MakeUtc(int year, int month, int day, int hour)
+  {
+   MqlDateTime t;
+   ZeroMemory(t);
+   t.year = year;
+   t.mon  = month;
+   t.day  = day;
+   t.hour = hour;
+   return StructToTime(t);
+  }
+
+int DayOfWeek(datetime t)
+  {
+   MqlDateTime s;
+   TimeToStruct(t, s);
+   return s.day_of_week; // 0 = Sunday
+  }
+
+datetime FirstSunday(int year, int month)
+  {
+   datetime first = MakeUtc(year, month, 1, 0);
+   return first + ((7 - DayOfWeek(first)) % 7) * 86400;
+  }
+
+datetime LastSunday(int year, int month)
+  {
+   datetime last = (month == 12 ? MakeUtc(year + 1, 1, 1, 0) : MakeUtc(year, month + 1, 1, 0)) - 86400;
+   return last - DayOfWeek(last) * 86400;
+  }
+
+int YearOf(datetime t)
+  {
+   MqlDateTime s;
+   TimeToStruct(t, s);
+   return s.year;
+  }
+
+// UK summer time: last Sunday of March 01:00 UTC to last Sunday of October 01:00 UTC.
+bool UkSummerTime(datetime utc)
+  {
+   int y = YearOf(utc);
+   return utc >= LastSunday(y, 3) + 3600 && utc < LastSunday(y, 10) + 3600;
+  }
+
+// US summer time: second Sunday of March 02:00 EST (07:00 UTC) to first Sunday of November 02:00 EDT (06:00 UTC).
+bool UsSummerTime(datetime utc)
+  {
+   int y = YearOf(utc);
+   return utc >= FirstSunday(y, 3) + 7 * 86400 + 7 * 3600 && utc < FirstSunday(y, 11) + 6 * 3600;
+  }
+
+datetime ServerToUtc(datetime server)
+  {
+   switch(InpServerClock)
+     {
+      case SERVER_CLOCK_NY_CLOSE:
+         // Check summer time against the winter offset; only wrong for the hour of the switch.
+         return server - (UsSummerTime(server - 2 * 3600) ? 3 : 2) * 3600;
+      case SERVER_CLOCK_AUTO:
+         if(!MQLInfoInteger(MQL_TESTER))
+           {
+            // TimeGMT() comes from the local PC clock; round the offset to 15 minutes.
+            long offset = (long)MathRound((double)(TimeTradeServer() - TimeGMT()) / 900.0) * 900;
+            return server - (datetime)offset;
+           }
+         // The tester has no real GMT, so fall through to the fixed offset.
+      default:
+         return server - InpServerGmtOffset * 3600;
+     }
+  }
+
+int LocalHour(datetime utc, int winterOffset, bool summer)
+  {
+   MqlDateTime s;
+   TimeToStruct(utc + (winterOffset + (summer ? 1 : 0)) * 3600, s);
+   return s.hour;
+  }
+
 bool InSession()
   {
-   MqlDateTime dt;
-   TimeToStruct(TimeCurrent(), dt);
-   return (InpUseLondon  && HourInWindow(dt.hour, InpLondonStartHour,  InpLondonEndHour)) ||
-          (InpUseNewYork && HourInWindow(dt.hour, InpNewYorkStartHour, InpNewYorkEndHour));
+   datetime utc = ServerToUtc(TimeCurrent());
+   return (InpUseLondon  && HourInWindow(LocalHour(utc,  0, UkSummerTime(utc)), InpLondonStartHour,  InpLondonEndHour)) ||
+          (InpUseNewYork && HourInWindow(LocalHour(utc, -5, UsSummerTime(utc)), InpNewYorkStartHour, InpNewYorkEndHour));
   }
 
 bool IsOurOrder(ulong ticket)
