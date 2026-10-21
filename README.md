@@ -16,6 +16,8 @@ An FVG is a three-candle imbalance:
 | Risk | 1% of balance per trade, sized from the stop distance |
 | Min gap size | 100 points (about $1.00 on most gold feeds) |
 | Displacement | Middle candle must close in the gap's direction |
+| Trend filter | Buys only when the last closed H1 candle is above the 200 EMA, sells only when below |
+| Sessions | London (10:00–19:00) and New York (15:00–23:00), broker server time; unfilled orders are cancelled outside them |
 | Unfilled orders | Cancelled after 16 bars (4 hours); a newer FVG replaces an older unfilled order |
 | Max positions | 1 |
 | Daily kill switch | Closes everything and stops for the day at a 3% equity drawdown |
@@ -50,5 +52,6 @@ An FVG is a three-candle imbalance:
 ## Notes
 
 - Point size differs between brokers (gold is usually 2 decimals, so 1 point = $0.01). Adjust the point-based inputs if your feed uses 3 decimals.
-- Session hours use the broker's server time. A common choice for gold is the London and New York sessions only.
+- Session hours use the broker's server time. The defaults assume a GMT+2 (winter) / GMT+3 (summer) server, which most MT5 brokers use. On that clock London opens at 10:00 and New York at 15:00 all year. If your broker's clock is different, shift the hours: London is 08:00–17:00 UK time and New York is 08:00–16:00 New York time. The NY window stops at 23:00 to avoid the wide spreads around the daily rollover.
+- Open positions are not closed when a session ends; they run to their stop or target.
 - If the stop distance needs less than the broker's minimum lot size, the trade is skipped rather than over-risked.

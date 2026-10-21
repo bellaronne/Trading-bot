@@ -11,8 +11,11 @@
 //|     buffer; take profit at RewardRisk x the stop distance.        |
 //|   - Lot size risks RiskPercent of balance per trade.              |
 //|                                                                  |
-//|  Safety: spread filter, session filter, max positions, unfilled   |
-//|  orders expire, daily loss kill switch.                           |
+//|   - Only trades with the higher-timeframe trend (H1 200 EMA) and  |
+//|     only during the London and New York sessions.                 |
+//|                                                                  |
+//|  Safety: spread filter, max positions, unfilled orders expire,    |
+//|  daily loss kill switch.                                          |
 //+------------------------------------------------------------------+
 #property copyright "Trading-bot"
 #property version   "1.00"
@@ -41,9 +44,21 @@ input int             InpMaxPositions       = 1;                    // Max open 
 input double          InpMaxDailyLossPct    = 3.0;                  // Daily loss kill switch (% of day-start equity, 0 = off)
 input double          InpMaxSpreadPoints    = 50;                   // Max spread to place orders (points, 0 = off)
 
-//--- Session (broker server time)
-input int             InpSessionStartHour   = 0;                    // Session start hour (0-23)
-input int             InpSessionEndHour     = 24;                   // Session end hour (1-24)
+//--- Trend filter: only trade gaps in the direction of the higher-timeframe trend
+input bool            InpUseTrendFilter     = true;                 // Enable trend filter
+input ENUM_TIMEFRAMES InpTrendTimeframe     = PERIOD_H1;            // Trend timeframe
+input int             InpTrendMAPeriod      = 200;                  // Trend EMA period
+
+//--- Sessions (broker server time). Defaults assume a GMT+2/GMT+3 server
+//--- (the common "New York close" broker clock), on which both sessions
+//--- stay at the same server hours year-round.
+input bool            InpUseLondon          = true;                 // Trade the London session
+input int             InpLondonStartHour    = 10;                   // London start hour (0-23)
+input int             InpLondonEndHour      = 19;                   // London end hour (1-24)
+input bool            InpUseNewYork         = true;                 // Trade the New York session
+input int             InpNewYorkStartHour   = 15;                   // New York start hour (0-23)
+input int             InpNewYorkEndHour     = 23;                   // New York end hour (1-24, avoids the rollover hour)
+input bool            InpCancelOutsideSession = true;               // Cancel unfilled orders outside the sessions
 
 //--- Misc
 input ulong           InpMagic              = 20261021;             // Magic number
@@ -54,6 +69,7 @@ datetime g_lastBarTime    = 0;
 datetime g_currentDay     = 0;
 double   g_dayStartEquity = 0.0;
 bool     g_haltedToday    = false;
+int      g_trendMaHandle  = INVALID_HANDLE;
 
 //+------------------------------------------------------------------+
 int OnInit()
@@ -63,11 +79,27 @@ int OnInit()
       Print("RiskPercent must be in (0, 10]");
       return INIT_PARAMETERS_INCORRECT;
      }
-   if(InpRewardRisk <= 0 || InpSessionStartHour < 0 || InpSessionStartHour > 23 ||
-      InpSessionEndHour < 1 || InpSessionEndHour > 24)
+   if(InpRewardRisk <= 0 ||
+      !ValidSessionHours(InpLondonStartHour, InpLondonEndHour) ||
+      !ValidSessionHours(InpNewYorkStartHour, InpNewYorkEndHour))
      {
       Print("Invalid RewardRisk or session hours");
       return INIT_PARAMETERS_INCORRECT;
+     }
+
+   if(InpUseTrendFilter)
+     {
+      if(InpTrendMAPeriod < 1)
+        {
+         Print("TrendMAPeriod must be >= 1");
+         return INIT_PARAMETERS_INCORRECT;
+        }
+      g_trendMaHandle = iMA(_Symbol, InpTrendTimeframe, InpTrendMAPeriod, 0, MODE_EMA, PRICE_CLOSE);
+      if(g_trendMaHandle == INVALID_HANDLE)
+        {
+         Print("Could not create trend EMA");
+         return INIT_FAILED;
+        }
      }
 
    trade.SetExpertMagicNumber(InpMagic);
@@ -76,6 +108,12 @@ int OnInit()
 
    ResetDailyState();
    return INIT_SUCCEEDED;
+  }
+
+void OnDeinit(const int reason)
+  {
+   if(g_trendMaHandle != INVALID_HANDLE)
+      IndicatorRelease(g_trendMaHandle);
   }
 
 //+------------------------------------------------------------------+
@@ -93,7 +131,11 @@ void OnTick()
    ExpireOldOrders();
 
    if(!InSession())
+     {
+      if(InpCancelOutsideSession)
+         DeleteAllPendingOrders();
       return;
+     }
 
    CheckForFvg();
   }
@@ -143,8 +185,20 @@ void CheckForFvg()
    double minGap = InpMinGapPoints * _Point;
    double buffer = InpStopBufferPoints * _Point;
 
+   bool bullGap = (l3 - h1 >= minGap && (!InpRequireDisplacement || c2 > o2));
+   bool bearGap = (l1 - h3 >= minGap && (!InpRequireDisplacement || c2 < o2));
+   if(!bullGap && !bearGap)
+      return;
+
+   if(!TrendAllows(bullGap))
+     {
+      PrintFormat("Skip %s FVG: against the %s trend", bullGap ? "bullish" : "bearish",
+                  EnumToString(InpTrendTimeframe));
+      return;
+     }
+
    // Bullish FVG
-   if(l3 - h1 >= minGap && (!InpRequireDisplacement || c2 > o2))
+   if(bullGap)
      {
       double entry = l3;
       double sl    = (InpStopMode == STOP_CANDLE1_EXTREME ? l1 : h1) - buffer;
@@ -152,7 +206,7 @@ void CheckForFvg()
       PlaceOrder(ORDER_TYPE_BUY_LIMIT, entry, sl, tp);
      }
    // Bearish FVG
-   else if(l1 - h3 >= minGap && (!InpRequireDisplacement || c2 < o2))
+   else if(bearGap)
      {
       double entry = h3;
       double sl    = (InpStopMode == STOP_CANDLE1_EXTREME ? h1 : l1) + buffer;
@@ -260,14 +314,41 @@ double NormalizePrice(double price)
    return NormalizeDouble(price, _Digits);
   }
 
+// Longs only while the last closed trend-timeframe bar closed above the EMA,
+// shorts only while it closed below. Blocks both if the EMA isn't ready yet.
+bool TrendAllows(bool isBuy)
+  {
+   if(!InpUseTrendFilter)
+      return true;
+
+   double ema[1];
+   if(CopyBuffer(g_trendMaHandle, 0, 1, 1, ema) != 1)
+      return false;
+   double close = iClose(_Symbol, InpTrendTimeframe, 1);
+   if(close == 0)
+      return false;
+   return isBuy ? close > ema[0] : close < ema[0];
+  }
+
+bool ValidSessionHours(int startHour, int endHour)
+  {
+   return startHour >= 0 && startHour <= 23 && endHour >= 1 && endHour <= 24 && startHour != endHour;
+  }
+
+bool HourInWindow(int hour, int startHour, int endHour)
+  {
+   if(startHour < endHour)
+      return hour >= startHour && hour < endHour;
+   // Window wraps past midnight, e.g. 22 -> 6
+   return hour >= startHour || hour < endHour;
+  }
+
 bool InSession()
   {
    MqlDateTime dt;
    TimeToStruct(TimeCurrent(), dt);
-   if(InpSessionStartHour < InpSessionEndHour)
-      return dt.hour >= InpSessionStartHour && dt.hour < InpSessionEndHour;
-   // Session wraps past midnight, e.g. 22 -> 6
-   return dt.hour >= InpSessionStartHour || dt.hour < InpSessionEndHour;
+   return (InpUseLondon  && HourInWindow(dt.hour, InpLondonStartHour,  InpLondonEndHour)) ||
+          (InpUseNewYork && HourInWindow(dt.hour, InpNewYorkStartHour, InpNewYorkEndHour));
   }
 
 bool IsOurOrder(ulong ticket)

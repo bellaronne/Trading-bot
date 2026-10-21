@@ -1,9 +1,9 @@
 # Graph Report - Trading-bot  (2026-10-21)
 
 ## Corpus Check
-- 1 files · ~496 words
+- 1 files · ~607 words
 - Verdict: corpus is large enough that graph structure adds value.
-- Unclassified: 2 file(s) not represented in the graph (top: .mq5 1, .zip 1)
+- Unclassified: 3 file(s) not represented in the graph (top: (none) 2, .mq5 1)
 
 ## Summary
 - 8 nodes · 7 edges · 1 communities
@@ -11,7 +11,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `1e03f1c0`
+- Built from commit: `1f8a79bd`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
