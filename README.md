@@ -13,6 +13,7 @@ An FVG is a three-candle imbalance:
 |---|---|
 | Stop loss | Beyond candle 1's extreme + 50 point buffer (switchable to the far gap edge) |
 | Take profit | 2R (twice the stop distance) |
+| Breakeven | At 1R profit the stop moves to entry + 10 points (covers the spread) |
 | Risk | 1% of balance per trade, sized from the stop distance |
 | Min gap size | 100 points (about $1.00 on most gold feeds) |
 | Displacement | Middle candle must close in the gap's direction |

@@ -14,6 +14,8 @@
 //|   - Only trades with the higher-timeframe trend (H1 200 EMA) and  |
 //|     only during the London and New York sessions.                 |
 //|                                                                  |
+//|   - Stop moves to breakeven once the trade is 1R in profit.       |
+//|                                                                  |
 //|  Safety: spread filter, max positions, unfilled orders expire,    |
 //|  daily loss kill switch.                                          |
 //+------------------------------------------------------------------+
@@ -43,6 +45,11 @@ input double          InpRiskPercent        = 1.0;                  // Risk per 
 input int             InpMaxPositions       = 1;                    // Max open positions
 input double          InpMaxDailyLossPct    = 3.0;                  // Daily loss kill switch (% of day-start equity, 0 = off)
 input double          InpMaxSpreadPoints    = 50;                   // Max spread to place orders (points, 0 = off)
+
+//--- Breakeven
+input bool            InpUseBreakeven       = true;                 // Move stop to breakeven
+input double          InpBreakevenTriggerR  = 1.0;                  // Trigger when profit reaches N x initial risk
+input double          InpBreakevenOffsetPoints = 10;                // Lock in this many points past entry (covers spread)
 
 //--- Trend filter: only trade gaps in the direction of the higher-timeframe trend
 input bool            InpUseTrendFilter     = true;                 // Enable trend filter
@@ -123,6 +130,8 @@ void OnTick()
    if(g_haltedToday)
       return;
 
+   ManageBreakeven();
+
    datetime barTime = iTime(_Symbol, InpTimeframe, 0);
    if(barTime == 0 || barTime == g_lastBarTime)
       return;
@@ -167,6 +176,62 @@ void UpdateDailyKillSwitch()
       CloseAllPositions();
       DeleteAllPendingOrders();
       g_haltedToday = true;
+     }
+  }
+
+//+------------------------------------------------------------------+
+//| Breakeven: once price moves TriggerR x the initial risk in our    |
+//| favour, move the stop to entry (+ offset). Runs every tick.       |
+//+------------------------------------------------------------------+
+void ManageBreakeven()
+  {
+   if(!InpUseBreakeven)
+      return;
+
+   double offset  = InpBreakevenOffsetPoints * _Point;
+   double minDist = (double)MathMax(SymbolInfoInteger(_Symbol, SYMBOL_TRADE_STOPS_LEVEL),
+                                    SymbolInfoInteger(_Symbol, SYMBOL_TRADE_FREEZE_LEVEL)) * _Point;
+   double bid     = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+   double ask     = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
+
+   for(int i = PositionsTotal() - 1; i >= 0; i--)
+     {
+      ulong ticket = PositionGetTicket(i);
+      if(ticket == 0 ||
+         PositionGetInteger(POSITION_MAGIC) != (long)InpMagic ||
+         PositionGetString(POSITION_SYMBOL) != _Symbol)
+         continue;
+
+      double entry = PositionGetDouble(POSITION_PRICE_OPEN);
+      double sl    = PositionGetDouble(POSITION_SL);
+      double tp    = PositionGetDouble(POSITION_TP);
+      if(sl == 0)
+         continue;
+
+      bool   isBuy = (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY);
+      double newSl;
+      if(isBuy)
+        {
+         // Stop still below entry means it hasn't been moved yet; its distance is the initial risk.
+         if(sl >= entry || bid - entry < InpBreakevenTriggerR * (entry - sl))
+            continue;
+         newSl = NormalizePrice(entry + offset);
+         if(newSl <= sl || bid - newSl < minDist)
+            continue;
+        }
+      else
+        {
+         if(sl <= entry || entry - ask < InpBreakevenTriggerR * (sl - entry))
+            continue;
+         newSl = NormalizePrice(entry - offset);
+         if(newSl >= sl || newSl - ask < minDist)
+            continue;
+        }
+
+      if(trade.PositionModify(ticket, newSl, tp))
+         PrintFormat("Breakeven: position %I64u stop moved to %.2f", ticket, newSl);
+      else
+         PrintFormat("Breakeven modify failed: %d %s", trade.ResultRetcode(), trade.ResultRetcodeDescription());
      }
   }
 
