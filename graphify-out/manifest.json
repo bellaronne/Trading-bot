@@ -1,8 +1,170 @@
 {
   "README.md": {
-    "mtime": 1792578802.4746568,
-    "seen": 1792578803.023277,
-    "ast_hash": "7ba4909ba2a24eb52115a464b75e6c7b",
+    "mtime": 1795163808.2367024,
+    "seen": 1795163813.0848043,
+    "ast_hash": "fdf5c66c296b6831055302c16597cd84",
+    "semantic_hash": ""
+  },
+  ".claude/skills/trader-alerts/alerts.example.json": {
+    "mtime": 1795163808.2294924,
+    "seen": 1795163813.084756,
+    "ast_hash": "17c210246df646a6150476d89854867e",
+    "semantic_hash": ""
+  },
+  ".claude/skills/trader-alerts/alerts.py": {
+    "mtime": 1795163808.229511,
+    "seen": 1795163813.0847652,
+    "ast_hash": "380de25e29337c5b7fbb29938c458832",
+    "semantic_hash": ""
+  },
+  ".claude/skills/trader-analyst/facts.py": {
+    "mtime": 1795163808.229665,
+    "seen": 1795163813.084768,
+    "ast_hash": "6aa34127608ca2b33e0b9a4225a089e9",
+    "semantic_hash": ""
+  },
+  ".claude/skills/trader-analyst/metrics.example.json": {
+    "mtime": 1795163808.2296875,
+    "seen": 1795163813.08477,
+    "ast_hash": "22c35a239de274f95ba67df5be6f3016",
+    "semantic_hash": ""
+  },
+  ".claude/skills/trader-broker/claude_desktop_config.example.json": {
+    "mtime": 1795163808.2298253,
+    "seen": 1795163813.0847714,
+    "ast_hash": "241a96a4157fa5f3fa379c111406973d",
+    "semantic_hash": ""
+  },
+  ".claude/skills/trader-broker/ticket.py": {
+    "mtime": 1795163808.2298453,
+    "seen": 1795163813.084773,
+    "ast_hash": "4315855cdd89b231953f5bc5473c2603",
+    "semantic_hash": ""
+  },
+  ".claude/skills/trader-budget/config.example.json": {
+    "mtime": 1795163808.2300134,
+    "seen": 1795163813.0847745,
+    "ast_hash": "06d900c86f758f6b2a623416ef866ebc",
+    "semantic_hash": ""
+  },
+  ".claude/skills/trader-budget/size.py": {
+    "mtime": 1795163808.2300372,
+    "seen": 1795163813.084776,
+    "ast_hash": "55827c933db7b0afd4ddc4453a482eb0",
+    "semantic_hash": ""
+  },
+  ".claude/skills/trader-budget/targets.example.json": {
+    "mtime": 1795163808.2301562,
+    "seen": 1795163813.084777,
+    "ast_hash": "72f27e86edcd67560c48db6e8166bc0d",
+    "semantic_hash": ""
+  },
+  ".claude/skills/trader-entry/entry.py": {
+    "mtime": 1795163808.2303376,
+    "seen": 1795163813.0847783,
+    "ast_hash": "f5e503e497931a6ad43b1e4215ccaced",
+    "semantic_hash": ""
+  },
+  ".claude/skills/trader-exit/exit.py": {
+    "mtime": 1795163808.2305486,
+    "seen": 1795163813.08478,
+    "ast_hash": "d9524ece621f87ee885f9975e142f9b2",
+    "semantic_hash": ""
+  },
+  ".claude/skills/trader-news/news.py": {
+    "mtime": 1795163808.2307413,
+    "seen": 1795163813.084782,
+    "ast_hash": "66cb1650e7fa3399e98481d3fb935f7e",
+    "semantic_hash": ""
+  },
+  ".claude/skills/trader-pelosi/ptr.py": {
+    "mtime": 1795163808.230915,
+    "seen": 1795163813.084783,
+    "ast_hash": "6409c88cb6c79c4d17a298a9025d2883",
+    "semantic_hash": ""
+  },
+  ".claude/skills/trader-risk/check.py": {
+    "mtime": 1795163808.2311125,
+    "seen": 1795163813.084784,
+    "ast_hash": "4acc903191be105332ac8b2e1c08eead",
+    "semantic_hash": ""
+  },
+  ".claude/skills/trader-scanner/scan.py": {
+    "mtime": 1795163808.2313073,
+    "seen": 1795163813.0847857,
+    "ast_hash": "f54d04f65d159cc631e0657a73198927",
+    "semantic_hash": ""
+  },
+  ".claude/skills/trader-timemachine/timemachine.py": {
+    "mtime": 1795163808.2315128,
+    "seen": 1795163813.0847871,
+    "ast_hash": "b271d9e468a5a789047da73b04be4b5f",
+    "semantic_hash": ""
+  },
+  ".claude/skills/trader-alerts/SKILL.md": {
+    "mtime": 1795163808.229462,
+    "seen": 1795163813.0847886,
+    "ast_hash": "61b5089468b49a095b4f687d0b374798",
+    "semantic_hash": ""
+  },
+  ".claude/skills/trader-analyst/SKILL.md": {
+    "mtime": 1795163808.2296414,
+    "seen": 1795163813.0847898,
+    "ast_hash": "83a87cb3db29032572780ecbe89d11ea",
+    "semantic_hash": ""
+  },
+  ".claude/skills/trader-broker/SKILL.md": {
+    "mtime": 1795163808.2297986,
+    "seen": 1795163813.084791,
+    "ast_hash": "135e12b6ed475829943852e2d706fe53",
+    "semantic_hash": ""
+  },
+  ".claude/skills/trader-budget/SKILL.md": {
+    "mtime": 1795163808.229983,
+    "seen": 1795163813.0847921,
+    "ast_hash": "464e32b34c8b9deb78369c7fcb8b5659",
+    "semantic_hash": ""
+  },
+  ".claude/skills/trader-entry/SKILL.md": {
+    "mtime": 1795163808.2303002,
+    "seen": 1795163813.0847933,
+    "ast_hash": "ac80743fbd0559ce9c653afd8addf425",
+    "semantic_hash": ""
+  },
+  ".claude/skills/trader-exit/SKILL.md": {
+    "mtime": 1795163808.230516,
+    "seen": 1795163813.0847952,
+    "ast_hash": "d30e61c498e8cbbd7a08558653064033",
+    "semantic_hash": ""
+  },
+  ".claude/skills/trader-news/SKILL.md": {
+    "mtime": 1795163808.230701,
+    "seen": 1795163813.0847962,
+    "ast_hash": "e291387f2cf9f7df1b99879e7a4ddcea",
+    "semantic_hash": ""
+  },
+  ".claude/skills/trader-pelosi/SKILL.md": {
+    "mtime": 1795163808.230883,
+    "seen": 1795163813.0847974,
+    "ast_hash": "b0dc4f140d291aab5ca6e4fe7761229e",
+    "semantic_hash": ""
+  },
+  ".claude/skills/trader-risk/SKILL.md": {
+    "mtime": 1795163808.2310762,
+    "seen": 1795163813.0847988,
+    "ast_hash": "a7d8996472d2c1364c6113ca7deb8c16",
+    "semantic_hash": ""
+  },
+  ".claude/skills/trader-scanner/SKILL.md": {
+    "mtime": 1795163808.2312737,
+    "seen": 1795163813.0847998,
+    "ast_hash": "78f5019d7765751f6eed6672953acac2",
+    "semantic_hash": ""
+  },
+  ".claude/skills/trader-timemachine/SKILL.md": {
+    "mtime": 1795163808.2314754,
+    "seen": 1795163813.0848014,
+    "ast_hash": "6a309c0c30d53077712674fc90f3585c",
     "semantic_hash": ""
   }
 }

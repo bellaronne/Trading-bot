@@ -1,3 +1,21 @@
 {
-  "0": "Trading-bot"
+  "0": "Trading-bot",
+  "1": "scan.py",
+  "2": "entry.py",
+  "3": "timemachine.py",
+  "4": "news.py",
+  "5": "ticket.py",
+  "6": "exit.py",
+  "7": "datetime",
+  "8": "size.py",
+  "9": "json",
+  "10": "ptr.py",
+  "11": "facts.py",
+  "12": "trader-scanner",
+  "13": "trader-budget",
+  "14": "trader-pelosi",
+  "15": "trader-broker",
+  "16": "trader-risk",
+  "17": "trader-exit",
+  "18": "trader-timemachine"
 }

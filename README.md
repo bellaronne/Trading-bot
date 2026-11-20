@@ -56,3 +56,7 @@ An FVG is a three-candle imbalance:
 - **Server clock:** the sessions are set in London and New York local time, and the EA converts from the broker's server clock. On a live or demo account it detects the server's offset automatically. In the Strategy Tester it can't, so it uses `InpServerGmtOffset` (default 0; Exness servers are usually GMT+0, but confirm this). Check by comparing the Market Watch clock in MT5 with UTC. For a GMT+2/+3 broker, set `InpServerClock` to "GMT+2, GMT+3 during US summer time".
 - Open positions are not closed when a session ends; they run to their stop or target.
 - If the stop distance needs less than the broker's minimum lot size, the trade is skipped rather than over-risked.
+
+## Claude Code skills
+
+`.claude/skills/trader-*` holds the 11 skills from [Jakeschincariol/day-trader-skill](https://github.com/Jakeschincariol/day-trader-skill) (MIT, commit `3d0f4ef`): `/trader-scanner`, `/trader-news`, `/trader-entry`, `/trader-exit`, `/trader-timemachine`, `/trader-risk`, `/trader-budget`, `/trader-broker`, `/trader-alerts`, `/trader-analyst` and `/trader-pelosi`. They're built for US stocks (Yahoo Finance data, Alpaca or Interactive Brokers for orders), not for gold or forex, and they write their working files to a `trader/` folder. The order skill never places a trade without an explicit yes.
